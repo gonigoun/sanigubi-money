@@ -1,0 +1,30 @@
+rules_version = '2';
+// 산이구비 재정 공개 — 누구나 읽기, 관리자만 쓰기
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 관리자 Google 계정 목록 (firebase-config.js 의 ADMIN_EMAILS 와 같게)
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['gonigoun@gmail.com'];
+    }
+
+    // 월별 정산
+    match /months/{monthId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 영수증·증빙 사진 (사진 1장 = 문서 1개)
+    match /photos/{photoId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 그 밖의 곳은 모두 막기
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

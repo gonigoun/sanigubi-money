@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>청라 산이구비 재정 공개</title>
+<meta name="description" content="청라 산이구비 산악회 월별 정산 내역과 영수증">
+<meta property="og:title" content="청라 산이구비 재정 공개">
+<meta property="og:description" content="월별 산행 정산 내역과 영수증·증빙 사진">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="club">청라 산이구비 산악회</div>
+    <h1 id="pageTitle">재정 공개</h1>
+  </header>
+  <main id="app"><p class="loading">정산 내역을 불러오는 중이에요…</p></main>
+  <footer>
+    <div id="updated"></div>
+    <div>정산 내용에 궁금한 점은 재정총무에게 문의해 주세요.</div>
+    <a id="adminLink" href="#admin">관리자</a>
+  </footer>
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="증빙 사진 크게 보기">
+  <div class="bar"><span id="lbcap"></span><button type="button" id="lbclose">닫기</button></div>
+  <div class="stage"><img id="lbimg" alt=""></div>
+  <div class="bar"><button type="button" id="lbprev">이전</button><span id="lbcount" class="num"></span><button type="button" id="lbnext">다음</button></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
