@@ -16,7 +16,7 @@ with sync_playwright() as p:
     print('목록:', pg.locator('.mlist li').count(), '개')
     pg.screenshot(path=f'{OUT}/1-admin-list.png', full_page=True)
     # 공개 화면
-    pg.goto(BASE+'?mock'); pg.wait_for_selector('.thumb', timeout=10000)
+    pg.goto(BASE+'?mock'); pg.wait_for_selector('#receipts summary'); assert pg.locator('.thumb').count()==0; pg.click('#receipts summary'); pg.wait_for_selector('.thumb', timeout=10000)
     print('현재 잔액:', pg.inner_text('.balance .amt'), '| 사진:', pg.locator('.thumb').count())
     assert money(pg.inner_text('.balance .amt'))==5516245
     pg.screenshot(path=f'{OUT}/2-public.png', full_page=True)

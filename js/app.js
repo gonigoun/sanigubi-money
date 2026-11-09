@@ -93,24 +93,30 @@ async function renderPublic(selId) {
       ${ins.length ? `<section class="card"><h3 class="in"><span>수입</span><span class="t">${won(st.tin)}</span></h3><ul class="rows">${rows(ins, 'in')}</ul></section>` : ''}
       ${outs.length ? `<section class="card"><h3 class="out"><span>지출</span><span class="t">${won(st.tout)}</span></h3><ul class="rows">${rows(outs, 'out')}</ul></section>` : ''}
       ${gifts.length ? `<section class="card"><h3 class="gift"><span>현물 찬조, 감사합니다</span></h3><ul class="rows">${rows(gifts, 'gift')}</ul></section>` : ''}
-      <section class="card receipts" id="receipts"><h3><span>영수증 · 증빙 사진</span><span class="t" id="pcount"></span></h3><p class="empty">사진을 불러오는 중이에요…</p></section>
+      <details class="card receipts" id="receipts"><summary><span>영수증 · 증빙 사진 <span class="t" id="pcount"></span></span><span class="tog" aria-hidden="true"></span></summary><div id="rbody"><p class="empty">사진을 불러오는 중이에요…</p></div></details>
     </article></div>`;
 
   drawChart(yearMonths, sel.id);
   app.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.id; }));
   const chip = app.querySelector(`.chip[data-id="${sel.id}"]`); if (chip && chip.scrollIntoView) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
 
-  const photos = await photosOf(sel.id);
-  if (seq !== renderSeq) return; // 그새 다른 화면으로 이동함
-  const box = $('#receipts'); if (!box) return;
-  lbPhotos = photos;
-  $('#pcount').textContent = photos.length ? photos.length + '장' : '';
-  box.querySelector('.empty').remove();
-  box.insertAdjacentHTML('beforeend', photos.length
-    ? `<div class="grid">${photos.map((p, i) => `<button type="button" class="thumb" data-i="${i}" aria-label="${esc(p.caption || '증빙 사진 ' + (i + 1))} 크게 보기"><img src="${p.data}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`).join('')}</div>`
-    : '<p class="empty">이 달의 증빙 사진은 준비 중이에요.</p>');
-  if (sel.receiptNote) box.insertAdjacentHTML('beforeend', `<div class="rnote">${esc(sel.receiptNote)}</div>`);
-  box.querySelectorAll('.thumb').forEach(t => t.addEventListener('click', () => openLb(+t.dataset.i)));
+  // 영수증은 눌러서 펼칠 때 불러와요 (데이터 절약)
+  const det = $('#receipts');
+  let loaded = false;
+  det.addEventListener('toggle', async () => {
+    if (!det.open || loaded) return;
+    loaded = true;
+    const photos = await photosOf(sel.id);
+    if (seq !== renderSeq) return; // 그새 다른 화면으로 이동함
+    const box = $('#rbody'); if (!box) return;
+    lbPhotos = photos;
+    $('#pcount').textContent = photos.length ? photos.length + '장' : '';
+    box.innerHTML = (photos.length
+      ? `<div class="grid">${photos.map((p, i) => `<button type="button" class="thumb" data-i="${i}" aria-label="${esc(p.caption || '증빙 사진 ' + (i + 1))} 크게 보기"><img src="${p.data}" alt="${esc(p.caption || '')}" loading="lazy">${p.caption ? `<span class="cap">${esc(p.caption)}</span>` : ''}</button>`).join('')}</div>`
+      : '<p class="empty">이 달의 증빙 사진은 준비 중이에요.</p>') +
+      (sel.receiptNote ? `<div class="rnote">${esc(sel.receiptNote)}</div>` : '');
+    box.querySelectorAll('.thumb').forEach(t => t.addEventListener('click', () => openLb(+t.dataset.i)));
+  });
 }
 
 function drawChart(list, selId) {

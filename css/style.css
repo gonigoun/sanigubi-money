@@ -73,6 +73,13 @@ ul.rows li:last-child{border-bottom:0}
 .rows .note{grid-column:1/-1;font-size:13px;color:var(--muted);white-space:pre-line}
 .rows .gifttag{font-size:13px;color:var(--pine);font-weight:700;text-align:right}
 
+.receipts>summary{list-style:none;cursor:pointer;font-weight:700;font-size:15px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.receipts>summary::-webkit-details-marker{display:none}
+.receipts>summary .t{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.receipts .tog::after{content:"눌러서 펼치기 ▾";font-size:13px;font-weight:500;color:var(--pine);background:var(--pine-soft);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.receipts[open] .tog::after{content:"접기 ▴"}
+.receipts[open]>summary{border-bottom:1px solid var(--line)}
+.receipts>summary:focus-visible{outline:3px solid var(--in);outline-offset:-3px}
 .receipts .grid{columns:2;column-gap:10px;padding:12px}
 @media (min-width:560px){.receipts .grid{columns:3}}
 .thumb{display:block;width:100%;break-inside:avoid;margin:0 0 10px;border:1px solid var(--line);padding:0;border-radius:10px;overflow:hidden;background:var(--surface);cursor:zoom-in;text-align:left;color:var(--ink)}
