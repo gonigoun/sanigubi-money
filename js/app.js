@@ -92,13 +92,13 @@ async function renderPublic(selId) {
       `<button type="button" class="chip${isDone(m) ? '' : ' progress'}" data-id="${m.id}" aria-pressed="${m.id === sel.id}">${chipLabel(m)}</button>`).join('')}</nav>`;
   if (sel.placeholder) {
     app.innerHTML = head + `<article class="month"><div class="mhead"><h2>${sel.month}월 정산 <span class="stpill">정산 중</span></h2></div>
-      <div class="pending"><b>${sel.month}월 산행 정산을 진행하고 있어요.</b><br>매달 셋째 주쯤 정산이 끝나면 이곳에서 수입·지출과 영수증을 확인하실 수 있어요.</div></article></div>`;
+      <div class="pending"><b>${sel.month}월 산행 정산을 진행하고 있어요.</b><br>매달 셋째 주 즈음 정산이 끝나면 이곳에서 수입·지출과 영수증을 확인하실 수 있어요.</div></article></div>`;
     bindChips(sel); return;
   }
   app.innerHTML = head + `
     <article class="month">
       <div class="mhead"><h2>${sel.month}월 ${esc(sel.mountain)} 정산${isDone(sel) ? '' : ' <span class="stpill">정산 중</span>'}</h2><span class="date num">${esc(sel.date)}</span></div>
-      ${isDone(sel) ? '' : '<div class="pending">아직 정산 중이에요. 셋째 주쯤 정산이 끝나면 확정돼요. 지금 보이는 금액은 바뀔 수 있어요.</div>'}
+      ${isDone(sel) ? '' : '<div class="pending">매달 셋째 주 즈음 정산이 끝나면 확정돼요. 지금 보이는 금액은 바뀔 수 있어요.</div>'}
       <div class="sum">
         <div><div class="k">전월 이월</div><div class="v num">${won(st.start)}</div></div>
         <div><div class="k">이번 달 결과</div><div class="v num">${(diff >= 0 ? '+' : '') + won(diff)}</div></div>
