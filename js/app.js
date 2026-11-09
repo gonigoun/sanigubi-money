@@ -26,7 +26,10 @@ function totals(m) {
   return { tin, tout, start, end: start + tin - tout };
 }
 const isDone = m => m.status !== 'progress'; // 표시가 없는 예전 자료는 완료로 봐요
-function nowId() { const d = new Date(Date.now() + 9 * 3600e3); return idOf(d.getUTCFullYear(), d.getUTCMonth() + 1); } // 한국 시간 기준 이번 달
+function nowId() { // 한국 시간 기준 이번 달 (시험 모드에서는 ?now=2027-01 로 바꿔 볼 수 있어요)
+  const q = MOCK && new URLSearchParams(location.search).get('now'); if (q && /^\d{4}-\d{2}$/.test(q)) return q;
+  const d = new Date(Date.now() + 9 * 3600e3); return idOf(d.getUTCFullYear(), d.getUTCMonth() + 1);
+}
 const sortMonths = list => list.slice().sort((a, b) => a.id.localeCompare(b.id));
 function prevOf(list, id) { const s = sortMonths(list).filter(m => m.id < id); return s[s.length - 1] || null; }
 
@@ -48,7 +51,7 @@ const isAdmin = () => !!(user && ADMIN_EMAILS.includes(user.email) && user.verif
 function route() {
   const h = decodeURIComponent(location.hash.slice(1));
   if (h === 'admin' || h.startsWith('admin/')) return renderAdmin(h.split('/')[1] || null);
-  return renderPublic(/^\d{4}-\d{2}$/.test(h) ? h : null);
+  return renderPublic(/^\d{4}(-\d{2})?$/.test(h) ? h : null);
 }
 window.addEventListener('hashchange', route);
 
@@ -68,10 +71,16 @@ async function renderPublic(selId) {
   if (!months.some(m => m.id === nid) && (!months.length || months[months.length - 1].id < nid))
     chips.push({ id: nid, year: ny, month: nm, mountain: '', placeholder: true, status: 'progress', items: [] });
   if (!chips.length) { app.innerHTML = '<p class="empty">아직 올라온 정산 내역이 없어요.</p>'; return; }
-  const sel = chips.find(m => m.id === selId) || latest || chips[chips.length - 1];
+  // 볼 연도: 주소에 연도(#2026)나 달(#2026-05)이 있으면 그 연도, 없으면 올해
+  const years = [...new Set(chips.map(m => m.year))].sort((a, b) => b - a);
+  let viewYear = selId ? +selId.slice(0, 4) : ny;
+  if (!years.includes(viewYear)) viewYear = years[0];
+  const inYear = chips.filter(m => m.year === viewYear);
+  const doneInYear = inYear.filter(m => isDone(m) && !m.placeholder);
+  // 고른 달 → 없으면 그 해의 정산 완료된 최근 달 → 없으면 그 해의 가장 최근 달
+  const sel = (selId && selId.length > 4 && inYear.find(m => m.id === selId)) || doneInYear[doneInYear.length - 1] || inYear[inYear.length - 1];
   const st = totals(sel);
-  const yearMonths = done.filter(m => m.year === sel.year);
-  const multiYear = new Set(chips.map(m => m.year)).size > 1;
+  const yearMonths = doneInYear;
   $('#pageTitle').textContent = `${sel.year}년 재정 공개`;
   const upd = Math.max(...months.map(m => m.updatedAt || 0));
   $('#updated').textContent = upd ? `최종 업데이트 ${new Date(upd).toLocaleDateString('ko-KR')}` : '';
@@ -83,13 +92,14 @@ async function renderPublic(selId) {
     ? `<span class="gifttag">${esc(it.gift || '현물')}</span>` : `<span class="a num">${won(it.amount)}</span>`}${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}</li>`).join('');
   const diff = st.tin - st.tout;
 
-  const chipLabel = m => `${multiYear ? m.year + '년 ' : ''}${m.month}월${m.mountain ? ' ' + esc(m.mountain) : ''}${isDone(m) ? '' : (m.mountain ? ' · 정산 중' : ' 정산 중')}`;
+  const chipLabel = m => `${m.month}월${m.mountain ? ' ' + esc(m.mountain) : ''}${isDone(m) ? '' : (m.mountain ? ' · 정산 중' : ' 정산 중')}`;
+  const yearChip = y => `<button type="button" class="chip yearchip" data-id="${y}" aria-pressed="false">${y > viewYear ? `← ${y}년` : `${y}년 재정 모아보기`}</button>`;
   const head = `<div class="view">
-    ${latest ? `<div class="balance"><span class="lbl">현재 잔액 (${latest.month}월 ${esc(latest.mountain)} 정산 후)</span>
+    ${latest ? `<div class="balance"><span class="lbl">현재 잔액 (${latest.year !== viewYear || latest.year !== ny ? latest.year + '년 ' : ''}${latest.month}월 ${esc(latest.mountain)} 정산 후)</span>
       <span class="amt num">${won(totals(latest).end)}</span><span class="sub">${esc(latest.date)} 정산 기준</span></div>` : ''}
     ${yearMonths.length ? `<section class="trend" aria-label="월별 정산 후 잔액"><h2>${sel.year}년 월별 정산 후 잔액 (만원)</h2><svg id="chart" viewBox="0 0 600 170" role="img"></svg></section>` : ''}
-    <nav class="months" aria-label="정산 월 선택">${chips.slice().reverse().map(m =>
-      `<button type="button" class="chip${isDone(m) ? '' : ' progress'}" data-id="${m.id}" aria-pressed="${m.id === sel.id}">${chipLabel(m)}</button>`).join('')}</nav>`;
+    <nav class="months" aria-label="정산 월 선택">${years.filter(y => y > viewYear).map(yearChip).join('')}${inYear.slice().reverse().map(m =>
+      `<button type="button" class="chip${isDone(m) ? '' : ' progress'}" data-id="${m.id}" aria-pressed="${m.id === sel.id}">${chipLabel(m)}</button>`).join('')}${years.filter(y => y < viewYear).map(yearChip).join('')}</nav>`;
   if (sel.placeholder) {
     app.innerHTML = head + `<article class="month"><div class="mhead"><h2>${sel.month}월 정산 <span class="stpill">정산 중</span></h2></div>
       <div class="pending"><b>${sel.month}월 산행 정산을 진행하고 있어요.</b><br>매달 셋째 주 즈음 정산이 끝나면 이곳에서 수입·지출과 영수증을 확인하실 수 있어요.</div></article></div>`;
