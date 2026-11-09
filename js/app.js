@@ -25,6 +25,8 @@ function totals(m) {
   const start = toNum(m.start);
   return { tin, tout, start, end: start + tin - tout };
 }
+const isDone = m => m.status !== 'progress'; // 표시가 없는 예전 자료는 완료로 봐요
+function nowId() { const d = new Date(Date.now() + 9 * 3600e3); return idOf(d.getUTCFullYear(), d.getUTCMonth() + 1); } // 한국 시간 기준 이번 달
 const sortMonths = list => list.slice().sort((a, b) => a.id.localeCompare(b.id));
 function prevOf(list, id) { const s = sortMonths(list).filter(m => m.id < id); return s[s.length - 1] || null; }
 
@@ -58,12 +60,18 @@ let lbPhotos = [], lbIdx = 0, renderSeq = 0;
 async function renderPublic(selId) {
   const seq = ++renderSeq;
   $('#adminLink').hidden = false;
-  if (!months.length) { app.innerHTML = '<p class="empty">아직 올라온 정산 내역이 없어요.</p>'; return; }
-  const latest = months[months.length - 1];
-  const sel = months.find(m => m.id === selId) || latest;
-  const lt = totals(latest), st = totals(sel);
-  const yearMonths = months.filter(m => m.year === sel.year);
-  const multiYear = new Set(months.map(m => m.year)).size > 1;
+  // 정산 완료된 달 / 정산 중인 달 / 아직 입력 전인 이번 달(자리 표시)
+  const done = months.filter(isDone);
+  const latest = done[done.length - 1] || null;
+  const chips = months.slice();
+  const nid = nowId(), ny = +nid.slice(0, 4), nm = +nid.slice(5);
+  if (!months.some(m => m.id === nid) && (!months.length || months[months.length - 1].id < nid))
+    chips.push({ id: nid, year: ny, month: nm, mountain: '', placeholder: true, status: 'progress', items: [] });
+  if (!chips.length) { app.innerHTML = '<p class="empty">아직 올라온 정산 내역이 없어요.</p>'; return; }
+  const sel = chips.find(m => m.id === selId) || latest || chips[chips.length - 1];
+  const st = totals(sel);
+  const yearMonths = done.filter(m => m.year === sel.year);
+  const multiYear = new Set(chips.map(m => m.year)).size > 1;
   $('#pageTitle').textContent = `${sel.year}년 재정 공개`;
   const upd = Math.max(...months.map(m => m.updatedAt || 0));
   $('#updated').textContent = upd ? `최종 업데이트 ${new Date(upd).toLocaleDateString('ko-KR')}` : '';
@@ -75,14 +83,22 @@ async function renderPublic(selId) {
     ? `<span class="gifttag">${esc(it.gift || '현물')}</span>` : `<span class="a num">${won(it.amount)}</span>`}${it.note ? `<span class="note">${esc(it.note)}</span>` : ''}</li>`).join('');
   const diff = st.tin - st.tout;
 
-  app.innerHTML = `<div class="view">
-    <div class="balance"><span class="lbl">현재 잔액 (${latest.month}월 ${esc(latest.mountain)} 정산 후)</span>
-      <span class="amt num">${won(lt.end)}</span><span class="sub">${esc(latest.date)} 정산 기준</span></div>
-    <section class="trend" aria-label="월별 정산 후 잔액"><h2>${sel.year}년 월별 정산 후 잔액 (만원)</h2><svg id="chart" viewBox="0 0 600 170" role="img"></svg></section>
-    <nav class="months" aria-label="정산 월 선택">${months.slice().reverse().map(m =>
-      `<button type="button" class="chip" data-id="${m.id}" aria-pressed="${m.id === sel.id}">${multiYear ? m.year + '년 ' : ''}${m.month}월 ${esc(m.mountain)}</button>`).join('')}</nav>
+  const chipLabel = m => `${multiYear ? m.year + '년 ' : ''}${m.month}월${m.mountain ? ' ' + esc(m.mountain) : ''}${isDone(m) ? '' : (m.mountain ? ' · 정산 중' : ' 정산 중')}`;
+  const head = `<div class="view">
+    ${latest ? `<div class="balance"><span class="lbl">현재 잔액 (${latest.month}월 ${esc(latest.mountain)} 정산 후)</span>
+      <span class="amt num">${won(totals(latest).end)}</span><span class="sub">${esc(latest.date)} 정산 기준</span></div>` : ''}
+    ${yearMonths.length ? `<section class="trend" aria-label="월별 정산 후 잔액"><h2>${sel.year}년 월별 정산 후 잔액 (만원)</h2><svg id="chart" viewBox="0 0 600 170" role="img"></svg></section>` : ''}
+    <nav class="months" aria-label="정산 월 선택">${chips.slice().reverse().map(m =>
+      `<button type="button" class="chip${isDone(m) ? '' : ' progress'}" data-id="${m.id}" aria-pressed="${m.id === sel.id}">${chipLabel(m)}</button>`).join('')}</nav>`;
+  if (sel.placeholder) {
+    app.innerHTML = head + `<article class="month"><div class="mhead"><h2>${sel.month}월 정산 <span class="stpill">정산 중</span></h2></div>
+      <div class="pending"><b>${sel.month}월 산행 정산을 진행하고 있어요.</b><br>매달 셋째 주쯤 정산이 끝나면 이곳에서 수입·지출과 영수증을 확인하실 수 있어요.</div></article></div>`;
+    bindChips(sel); return;
+  }
+  app.innerHTML = head + `
     <article class="month">
-      <div class="mhead"><h2>${sel.month}월 ${esc(sel.mountain)} 정산</h2><span class="date num">${esc(sel.date)}</span></div>
+      <div class="mhead"><h2>${sel.month}월 ${esc(sel.mountain)} 정산${isDone(sel) ? '' : ' <span class="stpill">정산 중</span>'}</h2><span class="date num">${esc(sel.date)}</span></div>
+      ${isDone(sel) ? '' : '<div class="pending">아직 정산 중이에요. 셋째 주쯤 정산이 끝나면 확정돼요. 지금 보이는 금액은 바뀔 수 있어요.</div>'}
       <div class="sum">
         <div><div class="k">전월 이월</div><div class="v num">${won(st.start)}</div></div>
         <div><div class="k">이번 달 결과</div><div class="v num">${(diff >= 0 ? '+' : '') + won(diff)}</div></div>
@@ -96,9 +112,8 @@ async function renderPublic(selId) {
       <details class="card receipts" id="receipts"><summary><span>영수증 · 증빙 사진 <span class="t" id="pcount"></span></span><span class="tog" aria-hidden="true"></span></summary><div id="rbody"><p class="empty">사진을 불러오는 중이에요…</p></div></details>
     </article></div>`;
 
+  bindChips(sel);
   drawChart(yearMonths, sel.id);
-  app.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.id; }));
-  const chip = app.querySelector(`.chip[data-id="${sel.id}"]`); if (chip && chip.scrollIntoView) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
 
   // 영수증은 눌러서 펼칠 때 불러와요 (데이터 절약)
   const det = $('#receipts');
@@ -117,6 +132,11 @@ async function renderPublic(selId) {
       (sel.receiptNote ? `<div class="rnote">${esc(sel.receiptNote)}</div>` : '');
     box.querySelectorAll('.thumb').forEach(t => t.addEventListener('click', () => openLb(+t.dataset.i)));
   });
+}
+
+function bindChips(sel) {
+  app.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.id; }));
+  const chip = app.querySelector(`.chip[data-id="${sel.id}"]`); if (chip && chip.scrollIntoView) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
 
 function drawChart(list, selId) {
@@ -188,7 +208,7 @@ async function renderAdmin(editId) {
       <div id="sheets"></div></section>
     <section class="panel"><h2>월별 정산</h2>
       <p class="help">달을 눌러 내용을 고치거나 영수증 사진을 올려요.</p>
-      <ul class="mlist">${months.slice().reverse().map(m => { const t = totals(m); return `<li><span><b>${m.year}년 ${m.month}월 ${esc(m.mountain)}</b><span class="meta"> · ${esc(m.date)} · 잔액 <span class="num">${won(t.end)}</span></span></span>
+      <ul class="mlist">${months.slice().reverse().map(m => { const t = totals(m); return `<li><span><b>${m.year}년 ${m.month}월 ${esc(m.mountain)}</b> <span class="stpill${isDone(m) ? ' done' : ''}">${isDone(m) ? '완료' : '정산 중'}</span><span class="meta"> · ${esc(m.date)} · 잔액 <span class="num">${won(t.end)}</span></span></span>
         <a class="btn small" href="#admin/${m.id}">편집</a></li>`; }).join('') || '<li class="help">아직 등록된 달이 없어요.</li>'}</ul>
       <div class="row-actions"><a class="btn primary" href="#admin/new">+ 새 달 직접 입력</a>
         ${months.length ? '' : '<button type="button" class="btn" id="seed">처음 자료(2026년 1~10월) 넣기</button>'}</div>
@@ -227,7 +247,7 @@ async function doImport() {
   try {
     for (const { m } of picks) {
       const id = idOf(m.year, m.month), old = months.find(x => x.id === id);
-      await store.saveMonth(id, { year: m.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start ?? 0, items: m.items, receiptNote: old?.receiptNote || '' });
+      await store.saveMonth(id, { year: m.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start ?? 0, items: m.items, receiptNote: old?.receiptNote || '', status: old ? (old.status || 'done') : 'progress' });
     }
     await loadMonths(); toast(`${picks.length}개 달을 저장했어요.`); renderAdmin(null);
   } catch (e) { btn.disabled = false; toast('저장하지 못했어요: ' + (e.message || e)); }
@@ -246,7 +266,7 @@ async function seed(btn) {
         if (it.gift) items.push({ type: 'gift', name: it.name, gift: it.gift, note: it.note || '' });
       }
       const id = idOf(d.year, m.month);
-      await store.saveMonth(id, { year: d.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start, items, receiptNote: m.receiptNote || '' });
+      await store.saveMonth(id, { year: d.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start, items, receiptNote: m.receiptNote || '', status: 'done' });
       let order = 0;
       for (const r of m.receipts || []) {
         const blob = await (await fetch('seed/' + r.src)).blob();
@@ -265,12 +285,12 @@ async function renderEditor(editId) {
       const last = months[months.length - 1];
       let y = last ? last.year : new Date().getFullYear(), mo = last ? last.month + 1 : new Date().getMonth() + 1;
       if (mo > 12) { mo = 1; y++; }
-      draft = { year: y, month: mo, mountain: '', date: '', start: last ? totals(last).end : 0, receiptNote: '',
+      draft = { year: y, month: mo, mountain: '', date: '', start: last ? totals(last).end : 0, receiptNote: '', status: 'progress',
         items: [{ type: 'in', name: '산행회비', amount: '', note: '' }, { type: 'out', name: '차량비', amount: '', note: '' }, { type: 'out', name: '주류+물+얼음', amount: '', note: '' }, { type: 'out', name: '하산식', amount: '', note: '' }, { type: 'out', name: '임원회의 지원', amount: '', note: '' }] };
     } else {
       const m = months.find(x => x.id === editId);
       if (!m) { app.innerHTML = '<p class="empty">그 달을 찾지 못했어요. <a href="#admin">목록으로</a></p>'; return; }
-      draft = JSON.parse(JSON.stringify({ year: m.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start, receiptNote: m.receiptNote || '', items: m.items || [] }));
+      draft = JSON.parse(JSON.stringify({ year: m.year, month: m.month, mountain: m.mountain, date: m.date, start: m.start, receiptNote: m.receiptNote || '', items: m.items || [], status: m.status || 'done' }));
     }
     draftOrigId = editId; dirty = false;
   }
@@ -289,6 +309,9 @@ async function renderEditor(editId) {
       ${group('in', '수입')}${group('out', '지출')}${group('gift', '현물 찬조')}
       <div class="totals" id="totals"></div>
       <label class="f">영수증 설명 (선택 — 사진 아래에 보여요)<textarea id="fNote" placeholder="예: 하산식 979,000원 = 식당 952,000원 + 치킨 27,000원">${esc(draft.receiptNote)}</textarea></label>
+      <div class="statusbox${draft.status === 'progress' ? '' : ' done'}"><span><b>${draft.status === 'progress' ? '지금은 "정산 중"' : '정산 완료'}</b><br>${draft.status === 'progress'
+        ? '회원들에게 "정산 중"으로 보여요. 정산이 끝나면 완료를 눌러 주세요.' : '회원들에게 확정된 정산으로 보여요.'}</span>
+        <button type="button" class="btn ${draft.status === 'progress' ? 'primary' : 'small'}" id="statusBtn">${draft.status === 'progress' ? '✓ 정산 완료' : '정산 중으로 되돌리기'}</button></div>
       <div class="row-actions"><button type="button" class="btn primary" id="saveBtn">저장하기</button>
         ${saved ? '<button type="button" class="btn danger" id="delBtn">이 달 삭제</button>' : ''}</div>
     </section>
@@ -362,6 +385,11 @@ function bindEditor(editId) {
     dirty = true; renderEditor(editId);
   });
   $('#saveBtn').onclick = () => saveDraft(editId);
+  $('#statusBtn').onclick = () => {
+    const toDone = draft.status === 'progress';
+    if (toDone && !confirm(`${draft.year}년 ${draft.month}월 정산을 완료로 표시할까요? 회원들에게 확정된 정산으로 보여요.`)) return;
+    readHead(); draft.status = toDone ? 'done' : 'progress'; dirty = true; saveDraft(editId);
+  };
   const del = $('#delBtn'); if (del) del.onclick = () => deleteMonth(editId);
   $('#back').onclick = e => { if (dirty && !confirm('저장하지 않은 내용이 있어요. 그래도 나갈까요?')) e.preventDefault(); else draft = null; };
   updateTotals();
@@ -377,7 +405,7 @@ async function saveDraft(editId) {
       : { type: it.type, name: (it.name || '').trim(), amount: toNum(it.amount), note: (it.note || '').trim() });
   const btn = $('#saveBtn'); btn.disabled = true; btn.textContent = '저장 중…';
   try {
-    await store.saveMonth(id, { year: draft.year, month: draft.month, mountain: draft.mountain, date: draft.date, start: draft.start, items, receiptNote: draft.receiptNote });
+    await store.saveMonth(id, { year: draft.year, month: draft.month, mountain: draft.mountain, date: draft.date, start: draft.start, items, receiptNote: draft.receiptNote, status: draft.status || 'done' });
     if (editId !== 'new' && id !== editId) { // 연도·월을 바꾼 경우: 사진도 옮기기
       for (const p of await photosOf(editId, true)) await store.updatePhoto(p.id, { monthId: id });
       await store.deleteMonth(editId); photoCache.delete(editId);

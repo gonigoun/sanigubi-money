@@ -47,7 +47,9 @@ header h1{font-size:26px;line-height:1.3}
 nav.months{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
 nav.months::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap}
-.chip[aria-pressed="true"]{background:var(--pine);border-color:var(--pine);color:var(--on-pine);font-weight:700}
+.chip.progress{background:var(--warn-soft);border:1px dashed var(--warn);color:var(--warn);font-weight:700}
+.chip.progress[aria-pressed="true"]{background:var(--warn);border-color:var(--warn);color:var(--surface)}
+.chip[aria-pressed="true"]:not(.progress){background:var(--pine);border-color:var(--pine);color:var(--on-pine);font-weight:700}
 
 .month{display:grid;gap:16px}
 .mhead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
@@ -148,3 +150,13 @@ textarea{min-height:70px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30;max-width:90vw}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* 정산 중 표시 */
+.stpill{display:inline-block;vertical-align:middle;font-family:var(--body);font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--warn-soft);color:var(--warn);border:1px dashed var(--warn);white-space:nowrap}
+.stpill.done{background:var(--pine-soft);color:var(--pine);border:1px solid transparent}
+.pending{background:var(--warn-soft);color:var(--ink);border:1px dashed var(--warn);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.6}
+.pending b{color:var(--warn)}
+.statusbox{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:12px 14px;font-size:13px;background:var(--warn-soft);border:1px dashed var(--warn);color:var(--ink)}
+.statusbox b{font-size:15px;color:var(--warn)}
+.statusbox.done{background:var(--pine-soft);border:1px solid transparent}
+.statusbox.done b{color:var(--pine)}
